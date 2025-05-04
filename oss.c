@@ -28,7 +28,7 @@ typedef struct {
     long mtype;
     int pid;
     int resource_id;
-    char action[10]; // fixed size
+    char action[10];
 } Message;
 
 typedef struct {
@@ -38,9 +38,9 @@ typedef struct {
     int max;
 } ResourceDescriptor;
 
-SimClock* clock_shm;
+SimClock* clock_shm = (void *) -1;
 int shm_clock_id;
-ResourceDescriptor* resources;
+ResourceDescriptor* resources = (void *) -1;
 int shm_res_id;
 int msgid;
 int total_processes_launched = 0;
@@ -54,11 +54,15 @@ void advance_clock(int sec, int nano) {
 
 void cleanup(int sig) {
     msgctl(msgid, IPC_RMID, NULL);
+
     if (clock_shm != (void *) -1) shmdt(clock_shm);
     if (resources != (void *) -1) shmdt(resources);
+
     shmctl(shm_clock_id, IPC_RMID, NULL);
     shmctl(shm_res_id, IPC_RMID, NULL);
+
     if (log_file) fclose(log_file);
+
     kill(0, SIGTERM);
     printf("\nCleaned up resources. Exiting...\n");
     exit(0);
@@ -162,6 +166,6 @@ int main(int argc, char* argv[]) {
     }
 
     printf("OSS terminating after timeout or all processes finished.\n");
-    cleanup(0);
+    raise(SIGTERM); // safely call cleanup once via signal
     return 0;
 }
