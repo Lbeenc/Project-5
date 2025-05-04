@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
         runtime_ns += 250000000;
 
         // 20% chance to terminate after 1 second
-        if if (runtime_ns > 2 * BILLION) {
+        if (runtime_ns > 2 * BILLION) {
             Message term_msg = {1, pid, -1, "terminate"};
             msgsnd(msgid, &term_msg, sizeof(Message) - sizeof(long), 0);
             break;
