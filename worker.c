@@ -17,7 +17,7 @@ typedef struct {
     long mtype;
     int pid;
     int resource_id;
-    char action[8];
+    char action[10];
 } Message;
 
 int main(int argc, char* argv[]) {
