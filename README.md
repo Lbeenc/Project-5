@@ -3,63 +3,37 @@ Author: Curtis Been
 
 
 
- Description
-This project simulates a resource management system in an operating system using:
-- Shared memory (for system clock and resource descriptors)
-- Message queues (for communication between `oss` and `worker` processes)
-- Deadlock detection and recovery mechanism
+## Overview
 
-`oss` serves as the operating system simulator and handles process management, clock advancement, resource granting, logging, and deadlock detection. `worker` simulates user processes making resource requests and releases at random intervals.
+This project simulates an operating system's resource management system using shared memory and message queues. Multiple user processes (`worker`) randomly request or release resources, while a master process (`oss`) handles resource allocation, tracks requests, and periodically checks for deadlocks.
 
----
+## Key Features
 
-Compilation
-Run the following to build the project:
+- Shared memory system clock.
+- Resource descriptor table with 5 resources, 10 instances each.
+- IPC using message queues between `oss` and `worker`.
+- Dynamic forking of up to 18 concurrent user processes.
+- Logging to both file and screen.
+- Deadlock detection every simulated second.
+- Recovery by terminating one process per detection round.
+- Simulation terminates after 5 seconds or when all processes finish.
+
+## Files
+
+- `oss.c` – Master simulator that manages resources, workers, clock, and deadlock detection.
+- `worker.c` – User process that requests/releases resources and terminates randomly.
+- `shared.h` – Shared structures for messages and resource descriptors.
+- `Makefile` – Builds `oss` and `worker`.
+- `oss.log` – Output log file (generated after run).
+
+## Compilation
 
 ```bash
-make all
-```
+make clean
+make
 
-This creates two executables: `oss` and `worker`.
+-------
 
----
-
-Execution
-To run the simulation:
-
-```bash
-./oss
-```
-
-Optional parameters can be added for extensions (if implemented).
-
----
-
-Files
-- `oss.c`: Main controller, forks children, manages clock, resources, and logs
-- `worker.c`: Simulated user process
-- `shared.h`: Common definitions and data structures
-- `Makefile`: Compiles the programs
-
----
-
- Resource Management Strategy
-- 5 types of resources, each with 10 instances
-- `oss` grants requests if available, otherwise blocks the process
-- Resource descriptors track allocations and requests per process
-
----
-
- Deadlock Detection Policy
-- Runs every 1 simulated second
-- Uses a variation of the Banker’s algorithm
-- If a deadlock is detected, `oss` terminates the process with the highest PID first
-- Releases all resources held by terminated processes
-
----
-
-
-
-
-
+Use This command to check deadlock log
+cat oss.log | grep -i deadlock
 
