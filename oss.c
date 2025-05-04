@@ -131,8 +131,8 @@ void handle_message(Message* msg) {
 
 void detect_and_resolve_deadlock() {
     int deadlocked[MAX_PROCESSES] = {0};
-    int blocked[MAX_PROCESSES] = {0};
     int copy_avail[MAX_RESOURCES];
+
     for (int r = 0; r < MAX_RESOURCES; r++) {
         copy_avail[r] = resources[r].available;
     }
@@ -142,6 +142,7 @@ void detect_and_resolve_deadlock() {
         changed = 0;
         for (int p = 0; p < MAX_PROCESSES; p++) {
             if (deadlocked[p]) continue;
+
             int can_run = 1;
             for (int r = 0; r < MAX_RESOURCES; r++) {
                 if (resources[r].request[p] > copy_avail[r]) {
@@ -149,6 +150,7 @@ void detect_and_resolve_deadlock() {
                     break;
                 }
             }
+
             if (can_run) {
                 for (int r = 0; r < MAX_RESOURCES; r++) {
                     copy_avail[r] += resources[r].allocated[p];
@@ -164,15 +166,19 @@ void detect_and_resolve_deadlock() {
         if (!deadlocked[p]) {
             found_deadlock = 1;
             fprintf(log_file, "Deadlock detected: P%d will be terminated.\n", p);
+
             for (int r = 0; r < MAX_RESOURCES; r++) {
                 resources[r].available += resources[r].allocated[p];
                 resources[r].allocated[p] = 0;
                 resources[r].request[p] = 0;
             }
-            kill(0, SIGTERM); // Simplified: You may replace this with targeted process handling
-            break; // Only terminate one process per detection cycle
+
+            // NOTE: You should implement targeted worker termination here.
+            // You could add a process table to map pid -> index
+            break;
         }
     }
+
     if (!found_deadlock) {
         fprintf(log_file, "No deadlock detected at time %d:%d\n", clock_shm->seconds, clock_shm->nanoseconds);
     }
