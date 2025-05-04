@@ -28,7 +28,7 @@ typedef struct {
     long mtype;
     int pid;
     int resource_id;
-    char action[8]; // "request", "release", "terminate"
+    char action[10]; // fixed size
 } Message;
 
 typedef struct {
@@ -58,7 +58,7 @@ void cleanup(int sig) {
     shmctl(shm_clock_id, IPC_RMID, NULL);
     shmdt(resources);
     shmctl(shm_res_id, IPC_RMID, NULL);
-    fclose(log_file);
+    if (log_file) fclose(log_file);
     kill(0, SIGTERM);
     printf("\nCleaned up resources. Exiting...\n");
     exit(0);
@@ -102,18 +102,18 @@ void handle_message(Message* msg) {
         if (resources[rid].available > 0) {
             resources[rid].available--;
             resources[rid].allocated[pid]++;
-            log_file && fprintf(log_file, "Granted R%d to P%d at time %d:%d\n", rid, pid, clock_shm->seconds, clock_shm->nanoseconds);
+            fprintf(log_file, "Granted R%d to P%d at time %d:%d\n", rid, pid, clock_shm->seconds, clock_shm->nanoseconds);
             msg->mtype = msg->pid + 1;
             msgsnd(msgid, msg, sizeof(Message) - sizeof(long), 0);
         } else {
             resources[rid].request[pid]++;
-            log_file && fprintf(log_file, "P%d waiting for R%d at %d:%d\n", pid, rid, clock_shm->seconds, clock_shm->nanoseconds);
+            fprintf(log_file, "P%d waiting for R%d at %d:%d\n", pid, rid, clock_shm->seconds, clock_shm->nanoseconds);
         }
     } else if (strcmp(msg->action, "release") == 0) {
         if (resources[rid].allocated[pid] > 0) {
             resources[rid].allocated[pid]--;
             resources[rid].available++;
-            log_file && fprintf(log_file, "P%d released R%d at time %d:%d\n", pid, rid, clock_shm->seconds, clock_shm->nanoseconds);
+            fprintf(log_file, "P%d released R%d at time %d:%d\n", pid, rid, clock_shm->seconds, clock_shm->nanoseconds);
         }
     } else if (strcmp(msg->action, "terminate") == 0) {
         for (int r = 0; r < MAX_RESOURCES; r++) {
@@ -121,7 +121,7 @@ void handle_message(Message* msg) {
             resources[r].allocated[pid] = 0;
             resources[r].request[pid] = 0;
         }
-        log_file && fprintf(log_file, "P%d terminated at time %d:%d\n", pid, clock_shm->seconds, clock_shm->nanoseconds);
+        fprintf(log_file, "P%d terminated at time %d:%d\n", pid, clock_shm->seconds, clock_shm->nanoseconds);
     }
 }
 
@@ -153,6 +153,7 @@ int main(int argc, char* argv[]) {
         pid_t pid;
         while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
             active_children--;
+            fprintf(log_file, "OSS: Reaped child PID %d at time %d:%d\n", pid, clock_shm->seconds, clock_shm->nanoseconds);
         }
     }
 
