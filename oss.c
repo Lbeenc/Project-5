@@ -54,9 +54,9 @@ void advance_clock(int sec, int nano) {
 
 void cleanup(int sig) {
     msgctl(msgid, IPC_RMID, NULL);
-    shmdt(clock_shm);
+    if (clock_shm != (void *) -1) shmdt(clock_shm);
+    if (resources != (void *) -1) shmdt(resources);
     shmctl(shm_clock_id, IPC_RMID, NULL);
-    shmdt(resources);
     shmctl(shm_res_id, IPC_RMID, NULL);
     if (log_file) fclose(log_file);
     kill(0, SIGTERM);
