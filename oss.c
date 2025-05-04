@@ -135,8 +135,12 @@ int main(int argc, char* argv[]) {
     msgid = msgget(IPC_PRIVATE, IPC_CREAT | 0666);
 
     int active_children = 0;
-    while (total_processes_launched < MAX_TOTAL_PROCESSES || active_children > 0) {
+    while ((total_processes_launched < MAX_TOTAL_PROCESSES || active_children > 0) && clock_shm->seconds < 5) {
         advance_clock(0, 100000); // advance 100us
+
+        printf("OSS time: %d:%d | Active: %d | Launched: %d\n", 
+            clock_shm->seconds, clock_shm->nanoseconds, active_children, total_processes_launched);
+        fflush(stdout);
 
         Message msg;
         while (msgrcv(msgid, &msg, sizeof(Message) - sizeof(long), 1, IPC_NOWAIT) > 0) {
@@ -156,6 +160,12 @@ int main(int argc, char* argv[]) {
             fprintf(log_file, "OSS: Reaped child PID %d at time %d:%d\n", pid, clock_shm->seconds, clock_shm->nanoseconds);
         }
     }
+
+    printf("OSS terminating after timeout or all processes finished.\n");
+    cleanup(0);
+    return 0;
+}
+
 
     cleanup(0);
     return 0;
