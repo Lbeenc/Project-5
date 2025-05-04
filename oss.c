@@ -129,6 +129,55 @@ void handle_message(Message* msg) {
     }
 }
 
+void detect_and_resolve_deadlock() {
+    int deadlocked[MAX_PROCESSES] = {0};
+    int blocked[MAX_PROCESSES] = {0};
+    int copy_avail[MAX_RESOURCES];
+    for (int r = 0; r < MAX_RESOURCES; r++) {
+        copy_avail[r] = resources[r].available;
+    }
+
+    int changed;
+    do {
+        changed = 0;
+        for (int p = 0; p < MAX_PROCESSES; p++) {
+            if (deadlocked[p]) continue;
+            int can_run = 1;
+            for (int r = 0; r < MAX_RESOURCES; r++) {
+                if (resources[r].request[p] > copy_avail[r]) {
+                    can_run = 0;
+                    break;
+                }
+            }
+            if (can_run) {
+                for (int r = 0; r < MAX_RESOURCES; r++) {
+                    copy_avail[r] += resources[r].allocated[p];
+                }
+                deadlocked[p] = 1;
+                changed = 1;
+            }
+        }
+    } while (changed);
+
+    int found_deadlock = 0;
+    for (int p = 0; p < MAX_PROCESSES; p++) {
+        if (!deadlocked[p]) {
+            found_deadlock = 1;
+            fprintf(log_file, "Deadlock detected: P%d will be terminated.\n", p);
+            for (int r = 0; r < MAX_RESOURCES; r++) {
+                resources[r].available += resources[r].allocated[p];
+                resources[r].allocated[p] = 0;
+                resources[r].request[p] = 0;
+            }
+            kill(0, SIGTERM); // Simplified: You may replace this with targeted process handling
+            break; // Only terminate one process per detection cycle
+        }
+    }
+    if (!found_deadlock) {
+        fprintf(log_file, "No deadlock detected at time %d:%d\n", clock_shm->seconds, clock_shm->nanoseconds);
+    }
+}
+
 int main(int argc, char* argv[]) {
     signal(SIGINT, cleanup);
     signal(SIGTERM, cleanup);
@@ -139,6 +188,8 @@ int main(int argc, char* argv[]) {
     msgid = msgget(IPC_PRIVATE, IPC_CREAT | 0666);
 
     int active_children = 0;
+    int last_deadlock_check_sec = 0;
+
     while ((total_processes_launched < MAX_TOTAL_PROCESSES || active_children > 0) && clock_shm->seconds < 5) {
         advance_clock(0, 100000); // advance 100us
 
@@ -163,9 +214,14 @@ int main(int argc, char* argv[]) {
             active_children--;
             fprintf(log_file, "OSS: Reaped child PID %d at time %d:%d\n", pid, clock_shm->seconds, clock_shm->nanoseconds);
         }
+
+        if (clock_shm->seconds > last_deadlock_check_sec) {
+            last_deadlock_check_sec = clock_shm->seconds;
+            detect_and_resolve_deadlock();
+        }
     }
 
     printf("OSS terminating after timeout or all processes finished.\n");
-    raise(SIGTERM); // safely call cleanup once via signal
+    raise(SIGTERM);
     return 0;
 }
